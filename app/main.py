@@ -3,6 +3,10 @@ from sample import user_portfolios, risk_scores
 
 app = FastAPI()
 
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to StashMock API. Try /healthz or /portfolio/{user_id}"}
+
 @app.get("/healthz")
 def health_check():
     return {"status": "ok"}
