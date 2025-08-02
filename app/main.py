@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from dummy_data import user_portfolios, risk_scores
+from sample import user_portfolios, risk_scores
 
 app = FastAPI()
 
