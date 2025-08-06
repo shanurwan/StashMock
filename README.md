@@ -1,64 +1,84 @@
-# Fintech Devop Project
 
-This project simulates a real-world DevOps setup for a cloud-native fintech platform like StashAway. It includes end-to-end CI/CD, infrastructure automation, secrets management, and monitoring all containerized and GitOps-ready. The API simulates account and transaction logic similar to robo-advisors, with performance testing and scaling simulations using Helm & k6.
+# Fintech DevOps Platform Demo
 
-It covers everything from development to deployment, including:
+A cloud-native fintech platform simulation showcasing end-to-end DevOps practices using free-tier and local tooling.
 
-- A RESTful API built using FastAPI
+---
 
-- Infrastructure automation with Terraform + Ansible
+## Project Objectives
 
-- CI/CD pipeline with GitHub Actions
+- Build and operate platform-level infrastructure: microservices, infrastructure-as-code, GitOps, and autoscaling.
 
-- Containerization with Docker
+- Enhance developer experience with on-demand environments, workflow automation, and an internal SDK.
 
-- Local Kubernetes cluster using k3d
+- Demonstrate incident management and monitoring in a containerized environment.
 
-- Monitoring via Prometheus & Grafana
+---
 
-- Secrets Management using a simulated AWS Secrets Manager
+##  Core Components
 
-- Designed to run entirely within AWS Free Tier 
+| Area                 | Technology                         | Description                                                    |
+|----------------------|------------------------------------|----------------------------------------------------------------|
+| **API & Messaging**  | FastAPI, Redis                     | User, portfolio, and transaction APIs; asynchronous notifications via Redis-backed service. |
+| **Infrastructure**   | Terraform, Ansible                 | Provision local Kubernetes (k3d), storage, and secrets.        |
+| **CI/CD**            | GitHub Actions, Helm               | Automated builds, tests, and deployments, including ephemeral preview environments per PR. |
+| **Orchestration**    | Kubernetes (k3d), KEDA             | Container scheduling and workload-based autoscaling.           |
+| **Monitoring**       | Prometheus, Grafana                | Metrics collection, dashboards, and alerting.                 |
+| **Developer Workflows** | Prefect or Celery              | Deposit simulation workflow to seed test data and automate multi-step processes. |
+| **Internal SDK**     | openapi-python-client              | Generated Python client for service-to-service communications. |
+| **Incident Response**| Slack Bolt, GitHub Issues          | Automated incident channel creation, notifications, and runbook integration. |
+| **Performance Testing** | k6                             | Load and stress tests for API endpoints.                      |
 
-## Project Goals
-This project simulates the DevOps practices of a real-world fintech platform, using only free tier tools. It is ideal for:
+---
 
-- Learning production DevOps workflows
+##  Implementation Roadmap
 
-- Practicing infrastructure-as-code
+1. **API & Core Services**  
+   - FastAPI microservices for user management, portfolios, and transactions.  
+   - Notifications service decoupled via Redis queue.
 
-- Building a portfolio to apply for DevOps roles
+2. **Infrastructure Automation**  
+   - Terraform and Ansible scripts to set up k3d cluster, persistent volumes, and secrets management.
 
-- Understanding cloud-native deployment (even without real AWS infra)
+3. **CI/CD & GitOps**  
+   - GitHub Actions workflows for code validation, Docker builds, and Helm-based deployments.  
+   - Preview environments per pull request with automatic teardown.
 
+4. **Autoscaling Demonstration**  
+   - Deploy KEDA operator to scale worker pods based on queue backlog.  
+   - Visualize scaling events in Grafana.
 
-## Core Features
+5. **Developer Workflow Automation**  
+   - Prefect/Celery-based deposit simulation to generate test scenarios and seed environments.
 
-- **User Management**: Register/login users securely
+6. **Internal SDK Generation**  
+   - Use OpenAPI specifications to generate a typed Python client library.
 
-- **Portfolio Simulation**: Create & retrieve mock portfolio allocations
+7. **Incident Management**  
+   - Slack Bolt application to orchestrate incident channels and integrate with GitHub Issues.  
+   - Documentation of runbook and escalation procedures.
 
-- **Transaction API**: Simulate deposits and rebalancing
+---
 
-- **API Performance Test**: Load test endpoints using `k6`
+## Local & Free-Tier Setup
 
-- **Secrets Handling**: Simulated AWS Secrets Manager in local file
+- **Kubernetes:** k3d on local machine or codespace  
+- **Queue:** Redis via Docker  
+- **Secrets:** File-based placeholders or local SSM mock  
+- **CI/CD:** GitHub Actions (public repo)  
+- **Monitoring:** Prometheus & Grafana in Docker  
+- **Autoscaling:** KEDA operator locally  
+- **Incident Bot:** Slack workspace with ngrok endpoint
 
-- **Monitoring & Logging**: Integrated with Prometheus/Grafana
+---
 
-## Tech Stack
+## Next Steps
 
-| Category      | Tools Used                       |
-|---------------|----------------------------------|
-| API           | Python, FastAPI, Uvicorn         |
-| Infrastructure| Terraform, Ansible               |
-| Container     | Docker, docker-compose           |
-| Orchestration | Kubernetes (k3d)                 |
-| Monitoring    | Prometheus, Grafana              |
-| CI/CD         | GitHub Actions                   |
-| DB            | PostgreSQL                       |
-| Performance   | k6                               |
-| Secrets Mgmt  | Simulated (YAML/AWS placeholder) |
+- Select priority components for initial development.  
+
+- Define acceptance criteria and automation scripts.  
+
+- Implement, document, and showcase each component in the repository.
 
 
 ## License
