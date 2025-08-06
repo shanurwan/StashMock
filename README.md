@@ -31,6 +31,80 @@ A cloud-native fintech platform simulation showcasing end-to-end DevOps practice
 
 ---
 
+## StashMock Architecture
+
+### Directory Structure
+```text
+StashMock/
+├── api/                      
+│   ├── portfolio_service/    # FastAPI service for portfolio endpoints  
+│   │   └── main.py           # Entrypoint  
+│   ├── notification_service/ # FastAPI + Redis queue consumer  
+│   │   └── main.py  
+│   └── worker_service/       # FastAPI or Celery worker for background tasks  
+│       └── main.py  
+├── infra/                    
+│   ├── terraform/            # IaC for k3d namespaces, volumes, secrets  
+│   └── ansible/              # Local playbooks for config/bootstrap  
+├── charts/                   
+│   ├── portfolio-chart/      # Helm chart for portfolio_service  
+│   ├── notification-chart/   # Helm chart for notification_service  
+│   └── worker-chart/         # Helm chart for worker_service  
+├── workflows/                
+│   └── deposit_simulator/    # Prefect/Celery DAG definitions & configs  
+├── scripts/                  
+│   ├── k3d-setup.sh          # Bootstrap local cluster  
+│   └── preview-teardown.sh   # Clean up PR namespaces  
+├── .github/                  
+│   └── workflows/ci.yml      # Build, test, Docker push, Helm deploy  
+├── Dockerfile                # Multi-service base image  
+├── docker-compose.yaml       # Local dev orchestration  
+├── README.md                 # Project overview & instructions  
+└── LICENSE  
+``` 
+
+### Architecture Diagram
+
+```
+flowchart LR
+  subgraph CI/CD Pipeline
+    GH[GitHub Actions]
+    Helm[Helm Charts]
+  end
+
+  subgraph "k3d Local Cluster"
+    Portfolio[Portfolio Service]
+    Notif[Notification Service]
+    Worker[Worker Service]
+    DB[(PostgreSQL)]
+    Redis[(Redis MQ)]
+    Prefect[Prefect/Celery]
+    Prom[Prometheus]
+    Graf[Grafana]
+    SlackBot[Slack Incident Bot]
+  end
+
+  GH -->|build & deploy| Helm -->|helm install| Portfolio
+  GH -->|helm install| Notif
+  GH -->|helm install| Worker
+
+  Portfolio -->|reads/writes| DB
+  Portfolio -->|publishes events| Redis
+  Notif -->|consumes events| Redis
+  Worker -->|consumes tasks| Redis
+  Worker -->|writes results| DB
+
+  Prefect -->|orchestrates| Redis
+  Prefect -->|seeds test data| DB
+
+  Prom -->|scrape metrics| Portfolio
+  Prom -->|scrape metrics| Worker
+  Graf -->|visualizes| Prom
+
+  SlackBot -->|listens| Slack
+  SlackBot -->|opens issues| GitHub
+```
+
 ##  Implementation Roadmap
 
 1. **API & Core Services**  
