@@ -1,4 +1,3 @@
-
 import os
 import asyncio
 from fastapi import FastAPI
@@ -15,6 +14,7 @@ Instrumentator().instrument(app).expose(app)
 
 redis = redis_from_url(REDIS_URL)
 
+
 @app.on_event("startup")
 async def _startup():
     await redis.ping()
@@ -24,9 +24,11 @@ async def _startup():
         pass
     asyncio.create_task(consume_tasks())
 
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 async def consume_tasks():
     while True:
@@ -34,7 +36,7 @@ async def consume_tasks():
             resp = await redis.xreadgroup(
                 groupname=GROUP,
                 consumername=CONSUMER,
-                streams={STREAM_TASKS: '>'},
+                streams={STREAM_TASKS: ">"},
                 count=10,
                 block=2000,
             )
@@ -54,6 +56,7 @@ async def consume_tasks():
         except Exception as e:
             print("worker error:", e)
             await asyncio.sleep(1)
+
 
 # Dev server tip:
 # uvicorn api.worker_service.main:app --reload --port 8003
