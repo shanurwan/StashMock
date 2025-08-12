@@ -1,0 +1,23 @@
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: stashmock
+    ports: ["5432:5432"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  portfolio_service:
+    build: .
+    command: uvicorn api.portfolio_service.main:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/stashmock
+      REDIS_URL: redis://redis:6379/0
+      NOTIFY_QUEUE: notify_events
+    depends_on: [postgres, redis]
+    ports: ["8000:8000"]
