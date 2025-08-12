@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: portfolio-service }
+  template:
+    metadata:
+      labels:
+        app: portfolio-service
+    spec:
+      containers:
+        - name: portfolio-service
+          image: {{ .Values.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef: { name: stashmock, key: REDIS_URL }
+            - name: NOTIFY_QUEUE
+              value: notify_events
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portfolio-service
+spec:
+  selector:
+    app: portfolio-service
+  ports:
+    - port: 8000
+      targetPort: 8000

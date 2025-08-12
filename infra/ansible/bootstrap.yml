@@ -1,0 +1,6 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Create secrets from file
+      shell: |
+        kubectl create secret generic stashmock --from-literal=REDIS_URL=redis://redis.default.svc.cluster.local:6379/0 -n default --dry-run=client -o yaml | kubectl apply -f -

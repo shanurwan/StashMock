@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: worker-service }
+  template:
+    metadata:
+      labels:
+        app: worker-service
+    spec:
+      containers:
+        - name: worker-service
+          image: {{ .Values.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8002
+          env:
+
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef: { name: stashmock, key: REDIS_URL }
+            - name: TASK_QUEUE
+              value: worker_tasks
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker-service
+spec:
+  selector:
+    app: worker-service
+  ports:
+    - port: 8002
+      targetPort: 8002
