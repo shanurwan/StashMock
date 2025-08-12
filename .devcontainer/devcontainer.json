@@ -1,0 +1,23 @@
+{
+  "name": "StashMock Dev",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "pip install -r requirements.txt || true",
+  "postStartCommand": "docker compose up --build -d",
+  "forwardPorts": [8000, 8001, 8002, 9090, 3000],
+  "portsAttributes": {
+    "8000": {"label": "Portfolio API"},
+    "8001": {"label": "Notification Service"},
+    "8002": {"label": "Worker Service"},
+    "9090": {"label": "Prometheus"},
+    "3000": {"label": "Grafana"}
+  },
+  "customizations": {
+    "vscode": {
+      "settings": { "terminal.integrated.defaultProfile.linux": "bash" },
+      "extensions": ["ms-azuretools.vscode-docker", "ms-python.python"]
+    }
+  }
+}
