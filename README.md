@@ -1,7 +1,7 @@
 
 # Fintech DevOps Platform Demo
 
-A cloud-native fintech platform simulation showcasing end-to-end DevOps practices using free-tier and local tooling.
+A cloud-native fintech platform simulation showcasing end-to-end DevOps practices using free-tier and local tooling. This project is meant solely for learning purpose. For this reason 
 
 ---
 
@@ -52,7 +52,11 @@ A cloud-native fintech platform simulation showcasing end-to-end DevOps practice
 StashMock/
 ├── api/                      
 │   ├── portfolio_service/    # FastAPI service for portfolio endpoints  
-│   │   └── main.py           # Entrypoint  
+|   |   |── main.py           # Entrypoint
+|   |   |── models.py 
+|   |   |── schemas.py 
+|   |   |── db.py 
+│   │   └── metrics.py           
 │   ├── notification_service/ # FastAPI + Redis queue consumer  
 │   │   └── main.py  
 │   └── worker_service/       # FastAPI  for background tasks  
