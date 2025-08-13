@@ -55,7 +55,7 @@ StashMock/
 │   │   └── main.py           # Entrypoint  
 │   ├── notification_service/ # FastAPI + Redis queue consumer  
 │   │   └── main.py  
-│   └── worker_service/       # FastAPI or Celery worker for background tasks  
+│   └── worker_service/       # FastAPI  for background tasks  
 │       └── main.py  
 ├── infra/                    
 │   ├── terraform/            # IaC for k3d namespaces, volumes, secrets  

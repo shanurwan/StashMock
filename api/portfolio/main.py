@@ -1,5 +1,5 @@
-#This is the first REST API, it is the main brain that talk to PostgreSQL
-#Goal for portfolio service :
+# This is the full stack main service cust interact with
+# Goal for portfolio service :
 # 1 - user see their investment status
 # 2 - user perform investment actions
 # 3 - user view their investment history
@@ -13,8 +13,7 @@ app = FastAPI()
 # create /health for technical check to see if the service is alive and responding
 # use case = monitoring & ops, isolation , for engineer to ensure API hasn't crashed
 
+
 @app.get("/health")
 def health_check():
-    return {'status': 'Healthy'}
-
-
+    return {"status": "Healthy"}
