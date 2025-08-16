@@ -1,74 +1,89 @@
 # api/portfolio_service/models.py
 from __future__ import annotations
-from typing import Tuple, Dict, List
-from .db import DB, User, Portfolio, Transaction
+from decimal import Decimal
+from typing import Dict, List, Tuple
+from sqlalchemy import select, desc
+from sqlalchemy.orm import Session
 
-def create_user(user_id: str, email: str) -> User:
-    if user_id in DB.users:
+from .db import User, Portfolio, Transaction
+
+# ---- Users ----
+def create_user(db: Session, user_id: str, email: str) -> User:
+    if db.get(User, user_id):
         raise ValueError("user_exists")
     u = User(id=user_id, email=email)
-    DB.users[user_id] = u
+    db.add(u)
+    db.commit()
+    db.refresh(u)
     return u
 
-def get_user(user_id: str) -> User:
-    u = DB.users.get(user_id)
+def get_user(db: Session, user_id: str) -> User:
+    u = db.get(User, user_id)
     if not u:
         raise KeyError("user_not_found")
     return u
 
-def create_portfolio(user_id: str, name: str, risk_level: int) -> Portfolio:
-    if user_id not in DB.users:
+# ---- Portfolios ----
+def create_portfolio(db: Session, user_id: str, name: str, risk_level: int) -> Portfolio:
+    if not db.get(User, user_id):
         raise KeyError("user_not_found")
-    pid = DB.next_portfolio_id()
-    p = Portfolio(id=pid, user_id=user_id, name=name, risk_level=risk_level)
-    DB.portfolios[pid] = p
+    p = Portfolio(user_id=user_id, name=name, risk_level=risk_level)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
     return p
 
-def get_portfolio(pid: int) -> Portfolio:
-    p = DB.portfolios.get(pid)
+def get_portfolio(db: Session, pid: int) -> Portfolio:
+    p = db.get(Portfolio, pid)
     if not p:
         raise KeyError("portfolio_not_found")
     return p
 
-def list_transactions(pid: int) -> List[Transaction]:
-    return DB.transactions_by_portfolio.get(pid, [])
+# ---- Transactions ----
+def list_transactions(db: Session, pid: int) -> List[Transaction]:
+    if not db.get(Portfolio, pid):
+        raise KeyError("portfolio_not_found")
+    q = select(Transaction).where(Transaction.portfolio_id == pid).order_by(desc(Transaction.id))
+    return list(db.scalars(q))
 
-def _cash_and_positions(pid: int) -> Tuple[float, Dict[str, Tuple[float, float]]]:
-    """
-    Returns:
-      cash (float),
-      positions map: symbol -> (net_qty, last_seen_price)
-    """
-    txs = list_transactions(pid)
-    cash = 0.0
-    positions: Dict[str, Tuple[float, float]] = {}  # symbol -> (qty, last_price)
+def _cash_and_positions(db: Session, pid: int) -> Tuple[Decimal, Dict[str, Tuple[Decimal, Decimal]]]:
+    txs = list_transactions(db, pid)
+    cash = Decimal("0.00")
+    positions: Dict[str, Tuple[Decimal, Decimal]] = {}  # symbol -> (qty, last_price)
     for tx in txs:
-        if tx.type == "deposit":
-            cash += round(float(tx.amount or 0.0), 2)
-        elif tx.type == "withdraw":
-            cash -= round(float(tx.amount or 0.0), 2)
-        elif tx.type == "buy":
-            cost = float(tx.quantity or 0.0) * float(tx.price or 0.0)
-            cash -= round(cost, 2)
-            qty, _last = positions.get(tx.symbol or "", (0.0, 0.0))
-            positions[tx.symbol or ""] = (qty + float(tx.quantity or 0.0), float(tx.price or 0.0))
-        elif tx.type == "sell":
-            proceeds = float(tx.quantity or 0.0) * float(tx.price or 0.0)
-            cash += round(proceeds, 2)
-            qty, _last = positions.get(tx.symbol or "", (0.0, 0.0))
-            positions[tx.symbol or ""] = (qty - float(tx.quantity or 0.0), float(tx.price or 0.0))
-    return round(cash, 2), positions
+        t = tx.type
+        amt = Decimal(str(tx.amount)) if tx.amount is not None else Decimal("0")
+        qty = Decimal(str(tx.quantity)) if tx.quantity is not None else Decimal("0")
+        price = Decimal(str(tx.price)) if tx.price is not None else Decimal("0")
+        sym = (tx.symbol or "").upper()
 
-def _would_cash_go_negative(pid: int, new_tx: Transaction) -> bool:
-    cash, _ = _cash_and_positions(pid)
-    if new_tx.type == "withdraw":
-        return cash - round(float(new_tx.amount or 0.0), 2) < 0
-    if new_tx.type == "buy":
-        cost = float(new_tx.quantity or 0.0) * float(new_tx.price or 0.0)
-        return cash - round(cost, 2) < 0
+        if t == "deposit":
+            cash += amt
+        elif t == "withdraw":
+            cash -= amt
+        elif t == "buy":
+            cash -= (qty * price)
+            q0, _ = positions.get(sym, (Decimal("0"), Decimal("0")))
+            positions[sym] = (q0 + qty, price)
+        elif t == "sell":
+            cash += (qty * price)
+            q0, _ = positions.get(sym, (Decimal("0"), Decimal("0")))
+            positions[sym] = (q0 - qty, price)
+    # rounding rules
+    cash = cash.quantize(Decimal("0.01"))
+    return cash, positions
+
+def _would_cash_go_negative(db: Session, pid: int, new_type: str, amount, quantity, price) -> bool:
+    cash, _ = _cash_and_positions(db, pid)
+    if new_type == "withdraw" and amount is not None:
+        return (cash - Decimal(str(amount))).quantize(Decimal("0.01")) < Decimal("0.00")
+    if new_type == "buy" and quantity is not None and price is not None:
+        cost = (Decimal(str(quantity)) * Decimal(str(price))).quantize(Decimal("0.01"))
+        return (cash - cost) < Decimal("0.00")
     return False
 
 def add_transaction(
+    db: Session,
     pid: int,
     type_: str,
     amount: float | None = None,
@@ -76,44 +91,50 @@ def add_transaction(
     quantity: float | None = None,
     price: float | None = None,
 ) -> Transaction:
-    if pid not in DB.portfolios:
+    if not db.get(Portfolio, pid):
         raise KeyError("portfolio_not_found")
 
-    # Validate minimally (deep validation happens at API layer)
+    if _would_cash_go_negative(db, pid, type_, amount, quantity, price):
+        raise ValueError("insufficient_funds")
+
     tx = Transaction(
-        id=DB.next_tx_id(),
         portfolio_id=pid,
         type=type_,
         amount=amount,
-        symbol=symbol,
+        symbol=(symbol.upper() if symbol else None),
         quantity=quantity,
         price=price,
     )
-    if _would_cash_go_negative(pid, tx):
-        raise ValueError("insufficient_funds")
-
-    DB.transactions_by_portfolio[pid].append(tx)
-    # Keep newest-first order for convenience
-    DB.transactions_by_portfolio[pid].sort(key=lambda t: t.id, reverse=True)
+    db.add(tx)
+    db.commit()
+    db.refresh(tx)
     return tx
 
-def compute_summary(pid: int):
-    p = get_portfolio(pid)
-    cash, positions_map = _cash_and_positions(pid)
+# ---- Summary ----
+def compute_summary(db: Session, pid: int):
+    p = get_portfolio(db, pid)
+    cash, positions_map = _cash_and_positions(db, pid)
 
     positions_out = []
-    total_positions_value = 0.0
+    total_positions_value = Decimal("0.00")
     for sym, (qty, last_price) in positions_map.items():
-        if round(qty, 6) == 0.0:
+        if qty.quantize(Decimal("0.000001")) == Decimal("0"):
             continue
-        mv = round(qty * last_price, 2)
+        mv = (qty * last_price).quantize(Decimal("0.01"))
         total_positions_value += mv
-        positions_out.append({"symbol": sym, "quantity": round(qty, 6), "market_value": mv})
+        positions_out.append(
+            {
+                "symbol": sym,
+                "quantity": float(qty),
+                "market_value": float(mv),
+            }
+        )
 
-    total_value = round(cash + total_positions_value, 2)
+    total_value = (cash + total_positions_value).quantize(Decimal("0.01"))
     return {
         "portfolio": {"id": p.id, "user_id": p.user_id, "name": p.name, "risk_level": p.risk_level},
-        "cash": cash,
+        "cash": float(cash),
         "positions": positions_out,
-        "total_value": total_value,
+        "total_value": float(total_value),
     }
+
