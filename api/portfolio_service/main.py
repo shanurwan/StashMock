@@ -19,9 +19,9 @@ from .metrics import prometheus_middleware
 app = FastAPI(title="StashMock Portfolio Service (M2: DB)", version="0.2.0")
 app.middleware("http")(prometheus_middleware())
 
-@app.on_event("startup")
-def _startup():
-    init_db()
+# @app.on_event("startup")
+# def _startup():
+#    init_db()
 
 @app.get("/health", response_model=HealthOut)
 def health():
