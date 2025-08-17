@@ -1,21 +1,13 @@
 {
-  "name": "StashMock Dev",
+  "name": "StashMock Dev (SQLite)",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
-  "features": {
-    "ghcr.io/devcontainers/features/postgres:1": {
-      "version": "16"
-    },
-    "ghcr.io/devcontainers/features/redis:1": {
-      "version": "7"
-    }
-  },
-  "forwardPorts": [8000, 5432, 6379],
+  "forwardPorts": [8000],
   "remoteUser": "vscode",
   "containerEnv": {
-    "DATABASE_URL": "postgresql+psycopg://postgres:postgres@localhost:5432/postgres",
     "PYTHONUNBUFFERED": "1",
     "PYTHONDONTWRITEBYTECODE": "1",
-    "PYTHONPATH": "/workspaces/${localWorkspaceFolderBasename}"
+    "PYTHONPATH": "/workspaces/${localWorkspaceFolderBasename}",
+    "DATABASE_URL": "sqlite:///./stashmock.db"
   },
   "postCreateCommand": "pip install --no-cache-dir -r requirements.txt",
   "postStartCommand": "alembic upgrade head || true",
