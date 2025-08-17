@@ -2,9 +2,8 @@ from __future__ import annotations
 import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import pool
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Connection
 
 from alembic import context
 
@@ -22,6 +21,7 @@ target_metadata = Base.metadata
 # --- Database URL (prefer env var) ---
 DB_URL = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
 
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     context.configure(
@@ -29,10 +29,11 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        compare_type=True,   # detect column type changes
+        compare_type=True,  # detect column type changes
     )
     with context.begin_transaction():
         context.run_migrations()
+
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
@@ -47,6 +48,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

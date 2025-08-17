@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from .db import User, Portfolio, Transaction
 
+
 # ---- Users ----
 def create_user(db: Session, user_id: str, email: str) -> User:
     if db.get(User, user_id):
@@ -17,14 +18,18 @@ def create_user(db: Session, user_id: str, email: str) -> User:
     db.refresh(u)
     return u
 
+
 def get_user(db: Session, user_id: str) -> User:
     u = db.get(User, user_id)
     if not u:
         raise KeyError("user_not_found")
     return u
 
+
 # ---- Portfolios ----
-def create_portfolio(db: Session, user_id: str, name: str, risk_level: int) -> Portfolio:
+def create_portfolio(
+    db: Session, user_id: str, name: str, risk_level: int
+) -> Portfolio:
     if not db.get(User, user_id):
         raise KeyError("user_not_found")
     p = Portfolio(user_id=user_id, name=name, risk_level=risk_level)
@@ -33,20 +38,29 @@ def create_portfolio(db: Session, user_id: str, name: str, risk_level: int) -> P
     db.refresh(p)
     return p
 
+
 def get_portfolio(db: Session, pid: int) -> Portfolio:
     p = db.get(Portfolio, pid)
     if not p:
         raise KeyError("portfolio_not_found")
     return p
 
+
 # ---- Transactions ----
 def list_transactions(db: Session, pid: int) -> List[Transaction]:
     if not db.get(Portfolio, pid):
         raise KeyError("portfolio_not_found")
-    q = select(Transaction).where(Transaction.portfolio_id == pid).order_by(desc(Transaction.id))
+    q = (
+        select(Transaction)
+        .where(Transaction.portfolio_id == pid)
+        .order_by(desc(Transaction.id))
+    )
     return list(db.scalars(q))
 
-def _cash_and_positions(db: Session, pid: int) -> Tuple[Decimal, Dict[str, Tuple[Decimal, Decimal]]]:
+
+def _cash_and_positions(
+    db: Session, pid: int
+) -> Tuple[Decimal, Dict[str, Tuple[Decimal, Decimal]]]:
     txs = list_transactions(db, pid)
     cash = Decimal("0.00")
     positions: Dict[str, Tuple[Decimal, Decimal]] = {}  # symbol -> (qty, last_price)
@@ -62,18 +76,21 @@ def _cash_and_positions(db: Session, pid: int) -> Tuple[Decimal, Dict[str, Tuple
         elif t == "withdraw":
             cash -= amt
         elif t == "buy":
-            cash -= (qty * price)
+            cash -= qty * price
             q0, _ = positions.get(sym, (Decimal("0"), Decimal("0")))
             positions[sym] = (q0 + qty, price)
         elif t == "sell":
-            cash += (qty * price)
+            cash += qty * price
             q0, _ = positions.get(sym, (Decimal("0"), Decimal("0")))
             positions[sym] = (q0 - qty, price)
     # rounding rules
     cash = cash.quantize(Decimal("0.01"))
     return cash, positions
 
-def _would_cash_go_negative(db: Session, pid: int, new_type: str, amount, quantity, price) -> bool:
+
+def _would_cash_go_negative(
+    db: Session, pid: int, new_type: str, amount, quantity, price
+) -> bool:
     cash, _ = _cash_and_positions(db, pid)
     if new_type == "withdraw" and amount is not None:
         return (cash - Decimal(str(amount))).quantize(Decimal("0.01")) < Decimal("0.00")
@@ -81,6 +98,7 @@ def _would_cash_go_negative(db: Session, pid: int, new_type: str, amount, quanti
         cost = (Decimal(str(quantity)) * Decimal(str(price))).quantize(Decimal("0.01"))
         return (cash - cost) < Decimal("0.00")
     return False
+
 
 def add_transaction(
     db: Session,
@@ -110,6 +128,7 @@ def add_transaction(
     db.refresh(tx)
     return tx
 
+
 # ---- Summary ----
 def compute_summary(db: Session, pid: int):
     p = get_portfolio(db, pid)
@@ -132,9 +151,13 @@ def compute_summary(db: Session, pid: int):
 
     total_value = (cash + total_positions_value).quantize(Decimal("0.01"))
     return {
-        "portfolio": {"id": p.id, "user_id": p.user_id, "name": p.name, "risk_level": p.risk_level},
+        "portfolio": {
+            "id": p.id,
+            "user_id": p.user_id,
+            "name": p.name,
+            "risk_level": p.risk_level,
+        },
         "cash": float(cash),
         "positions": positions_out,
         "total_value": float(total_value),
     }
-

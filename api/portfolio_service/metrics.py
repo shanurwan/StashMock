@@ -9,15 +9,13 @@ from prometheus_client import Counter, Histogram, Gauge
 
 # ---------- Prometheus ----------
 REQUESTS_TOTAL = Counter(
-    "http_requests_total",
-    "Total HTTP requests",
-    ["method", "route", "status"]
+    "http_requests_total", "Total HTTP requests", ["method", "route", "status"]
 )
 
 REQUEST_EXCEPTIONS_TOTAL = Counter(
     "http_request_exceptions_total",
     "Unhandled exceptions during request processing",
-    ["method", "route", "exc_type"]
+    ["method", "route", "exc_type"],
 )
 
 REQUEST_LATENCY = Histogram(
@@ -25,13 +23,11 @@ REQUEST_LATENCY = Histogram(
     "Request latency in seconds",
     ["method", "route"],
     # latency buckets (tune later if needed)
-    buckets=(0.005, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0)
+    buckets=(0.005, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
 )
 
-INFLIGHT = Gauge(
-    "http_requests_in_flight",
-    "In-flight HTTP requests"
-)
+INFLIGHT = Gauge("http_requests_in_flight", "In-flight HTTP requests")
+
 
 def _route_template(request: Request) -> str:
     # Use the route path template if available (e.g., /portfolios/{pid}/summary)
@@ -41,9 +37,11 @@ def _route_template(request: Request) -> str:
     # fallback: raw path
     return request.url.path
 
+
 # ---------- Logging ----------
 _log = logging.getLogger("stashmock.api")
 _log.setLevel(logging.INFO)
+
 
 def _json_log(event: str, **fields):
     try:
@@ -52,6 +50,7 @@ def _json_log(event: str, **fields):
     except Exception:
         # never let logging crash a request
         _log.warning("log_failed", exc_info=True)
+
 
 # ---------- Middleware (metrics + logs) ----------
 def observability_middleware() -> Callable:
@@ -94,4 +93,5 @@ def observability_middleware() -> Callable:
             latency_ms=round(latency * 1000, 3),
         )
         return response
+
     return _mw
