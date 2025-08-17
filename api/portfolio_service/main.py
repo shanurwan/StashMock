@@ -1,11 +1,13 @@
 # api/portfolio_service/main.py
 from __future__ import annotations
-from fastapi import FastAPI, HTTPException, Response, Depends
 from typing import List, Optional
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
+from fastapi import FastAPI, HTTPException, Response, Depends
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from sqlalchemy import text
 from sqlalchemy.orm import Session
-from .db import init_db, get_session
+
+from .db import get_session, engine
 from .schemas import (
     HealthOut, UserCreate, UserOut, PortfolioCreate, PortfolioOut,
     TransactionCreate, TransactionOut, SummaryOut, ErrorOut
@@ -14,19 +16,34 @@ from .models import (
     create_user, get_user, create_portfolio, get_portfolio,
     add_transaction, list_transactions, compute_summary
 )
-from .metrics import prometheus_middleware
+from .metrics import observability_middleware  # M3: enhanced metrics/logging
 
-app = FastAPI(title="StashMock Portfolio Service (M2: DB)", version="0.2.0")
-app.middleware("http")(prometheus_middleware())
+app = FastAPI(title="StashMock Portfolio Service (M3: Observability)", version="0.3.0")
 
-# @app.on_event("startup")
-# def _startup():
-#    init_db()
+# M3: structured logs + Prometheus metrics (latency buckets, in-flight, errors)
+app.middleware("http")(observability_middleware())
 
+# --- Liveness (fast, no deps) ---
+@app.get("/live")
+def live():
+    return {"status": "ok"}
+
+# --- Readiness (checks DB quickly) ---
+@app.get("/ready")
+def ready():
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {"status": "ready"}
+    except Exception:
+        raise HTTPException(status_code=503, detail="db not ready")
+
+# --- Health (lightweight, no DB touch) ---
 @app.get("/health", response_model=HealthOut)
 def health():
     return {"status": "ok"}
 
+# --- Metrics (Prometheus) ---
 @app.get("/metrics")
 def metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
