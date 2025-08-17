@@ -6,6 +6,9 @@ from fastapi import FastAPI, HTTPException, Response, Depends
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+import os, json
+from redis import Redis
+import fakeredis
 
 from .db import get_session, engine
 from .schemas import (
@@ -29,6 +32,20 @@ from .models import (
     compute_summary,
 )
 from .metrics import observability_middleware  # M3: enhanced metrics/logging
+
+
+
+REDIS_URL = os.getenv("REDIS_URL", "fakeredis://")
+NOTIFY_QUEUE = os.getenv("NOTIFY_QUEUE", "notify_events")
+TASK_QUEUE = os.getenv("TASK_QUEUE", "worker_tasks")
+
+def _redis_client() -> Redis:
+    if REDIS_URL.startswith("fakeredis://"):
+        return fakeredis.FakeRedis(decode_responses=True)
+    return Redis.from_url(REDIS_URL, decode_responses=True)
+
+rpub = _redis_client()
+
 
 app = FastAPI(title="StashMock Portfolio Service (M3: Observability)", version="0.3.0")
 
@@ -122,28 +139,6 @@ def get_portfolio_ep(pid: int, db: Session = Depends(get_session)):
 
 
 # ---- Transactions ----
-@app.post(
-    "/portfolios/{pid}/transactions",
-    response_model=TransactionOut,
-    responses={404: {"model": ErrorOut}, 422: {"model": ErrorOut}},
-)
-def create_tx_ep(pid: int, body: TransactionCreate, db: Session = Depends(get_session)):
-    t = body.type
-    if t in ("deposit", "withdraw"):
-        if body.amount is None or body.amount <= 0:
-            raise HTTPException(status_code=422, detail="amount must be > 0")
-    elif t in ("buy", "sell"):
-        if not body.symbol or body.quantity is None or body.price is None:
-            raise HTTPException(
-                status_code=422, detail="symbol, quantity and price are required"
-            )
-        if body.quantity <= 0 or body.price <= 0:
-            raise HTTPException(
-                status_code=422, detail="quantity and price must be > 0"
-            )
-    else:
-        raise HTTPException(status_code=422, detail="unknown transaction type")
-
     try:
         tx = add_transaction(
             db=db,
@@ -154,6 +149,24 @@ def create_tx_ep(pid: int, body: TransactionCreate, db: Session = Depends(get_se
             quantity=body.quantity,
             price=body.price,
         )
+
+        # --- publish events to Redis ---
+        try:
+            rpub.rpush(NOTIFY_QUEUE, json.dumps({
+                "event": "transaction_created",
+                "portfolio_id": pid,
+                "tx_id": tx.id,
+                "type": tx.type,
+            }))
+            rpub.rpush(TASK_QUEUE, json.dumps({
+                "task": "recompute_summary_hint",
+                "portfolio_id": pid
+            }))
+        except Exception:
+            # best-effort, don’t block the API if queueing fails
+            pass
+
+        # --- normal API response ---
         return {
             "id": tx.id,
             "portfolio_id": tx.portfolio_id,
@@ -164,12 +177,7 @@ def create_tx_ep(pid: int, body: TransactionCreate, db: Session = Depends(get_se
             "price": float(tx.price) if tx.price is not None else None,
             "created_at": tx.created_at,
         }
-    except KeyError:
-        raise HTTPException(status_code=404, detail="portfolio not found")
-    except ValueError as e:
-        if str(e) == "insufficient_funds":
-            raise HTTPException(status_code=422, detail="cash would go negative")
-        raise
+
 
 
 @app.get(
