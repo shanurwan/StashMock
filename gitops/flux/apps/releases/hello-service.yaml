@@ -1,0 +1,25 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: hello-service
+  namespace: platform
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: hello-chart
+      sourceRef:
+        kind: GitRepository
+        name: stashmock-charts
+        namespace: flux-system
+  values:
+    image:
+      repository: localhost:5001/hello-service
+      tag: dev
+    service:
+      port: 8000
+    env:
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://otel-collector.monitoring:4317
+      - name: OTEL_SERVICE_NAME
+        value: hello-service

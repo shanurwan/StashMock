@@ -1,0 +1,8 @@
+image:
+  repository: localhost:5001/hello-service
+  tag: dev
+
+service:
+  port: 8000
+
+resources: {}

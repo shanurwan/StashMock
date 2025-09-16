@@ -78,3 +78,8 @@ Thumbs.db
 *.iml
 *.swp
 *.swo
+
+# Alembic Migration
+stashmock.db
+__pycache__/
+.alembic/  # if your editor creates this
