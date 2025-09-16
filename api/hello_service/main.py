@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram
 from fastapi.responses import Response
-import time, os
+import time
+import os
 
-# OpenTelemetry 
+# OpenTelemetry
 try:
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
@@ -19,21 +20,26 @@ try:
     provider.add_span_processor(processor)
     trace.set_tracer_provider(provider)
     tracer = trace.get_tracer(__name__)
-except Exception as e:
+except Exception:
     tracer = None
 
 app = FastAPI(title="Hello Platform")
 
 REQS = Counter("hello_requests_total", "Total hello requests", ["path"])
-LAT = Histogram("hello_request_seconds", "Latency", buckets=(0.01,0.05,0.1,0.25,0.5,1,2))
+LAT = Histogram(
+    "hello_request_seconds", "Latency", buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1, 2)
+)
+
 
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
 
+
 @app.get("/metrics")
 def metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
 @app.get("/hello")
 def hello(name: str = "world"):
